@@ -21,6 +21,9 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+    compileOptions {
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 }
 
 dependencies {
@@ -33,4 +36,10 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
 
+    // Brightcove
+    implementation "com.brightcove.player:android-sdk:6.10.0"
+    implementation "com.brightcove.player:exoplayer2:6.10.0"
+
+    // Exoplayer 2
+    implementation 'com.google.android.exoplayer:exoplayer:2.10.5'
 }
