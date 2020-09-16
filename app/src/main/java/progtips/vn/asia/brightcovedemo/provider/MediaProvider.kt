@@ -1,14 +1,11 @@
 package progtips.vn.asia.brightcovedemo.provider
 
-import com.google.android.exoplayer2.drm.DefaultDrmSessionEventListener
-import com.google.android.exoplayer2.drm.DrmSessionManager
-import com.google.android.exoplayer2.drm.FrameworkMediaCrypto
-import com.google.android.exoplayer2.source.MediaSource
+import com.google.android.exoplayer2.MediaItem
 
 interface MediaProvider {
     fun getVideoSourceById(
         videoId: String,
-        drmEventListener: DefaultDrmSessionEventListener,
-        callBack: (mediaSource: MediaSource, drmSessionManager: DrmSessionManager<FrameworkMediaCrypto>?) -> Unit
+        callBack: (mediaItem: MediaItem) -> Unit
     )
+
 }

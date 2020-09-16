@@ -6,10 +6,6 @@ import kotlinx.android.synthetic.main.activity_main.*
 import progtips.vn.asia.brightcovedemo.player.PlayerManager
 
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
-    companion object {
-        const val APP_NAME = "app-name"
-    }
-
     private lateinit var playerManager: PlayerManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,13 +21,14 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
     private fun playVideo(videoId: String) {
         playerManager.playVideo(videoId) { player ->
             player.playWhenReady = true
+            player.prepare()
             videoView.player = player
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        videoView.player.release()
+        videoView.player?.release()
     }
 
 }

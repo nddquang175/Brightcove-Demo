@@ -2,18 +2,19 @@ package progtips.vn.asia.brightcovedemo.provider
 
 import android.content.Context
 import android.net.Uri
-import android.os.Handler
-import com.brightcove.player.Constants
 import com.brightcove.player.controller.ExoPlayerSourceSelector
-import com.brightcove.player.drm.ExoPlayerDrmSessionManager
-import com.brightcove.player.drm.WidevineMediaDrmCallback
 import com.brightcove.player.edge.Catalog
+import com.brightcove.player.edge.PlaylistListener
 import com.brightcove.player.edge.VideoListener
 import com.brightcove.player.event.EventEmitterImpl
 import com.brightcove.player.model.DeliveryType
+import com.brightcove.player.model.Playlist
 import com.brightcove.player.model.Source
 import com.brightcove.player.model.Video
-import com.google.android.exoplayer2.drm.*
+import com.google.android.exoplayer2.C
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.drm.DrmSessionEventListener
+import com.google.android.exoplayer2.drm.DrmSessionManager
 import com.google.android.exoplayer2.source.MediaSource
 import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.dash.DashMediaSource
@@ -24,7 +25,7 @@ import progtips.vn.asia.brightcovedemo.MainActivity
 import progtips.vn.asia.brightcovedemo.R
 
 class BrightcoveProvider(
-    private val context: Context
+    context: Context
 ): MediaProvider {
 
     private val catalog = Catalog(
@@ -33,66 +34,39 @@ class BrightcoveProvider(
         context.getString(R.string.policy)
     )
 
-    override fun getVideoSourceById(
-        videoId: String,
-        drmEventListener: DefaultDrmSessionEventListener,
-        callBack: (mediaSource: MediaSource, drmSessionManager: DrmSessionManager<FrameworkMediaCrypto>?) -> Unit
-    ) {
-        catalog.findVideoByID(videoId, object: VideoListener() {
+    override fun getVideoSourceById(videoId: String, callBack: (mediaItem: MediaItem) -> Unit) {
+        catalog.findVideoByID(videoId, object : VideoListener() {
             override fun onVideo(p0: Video?) {
-                p0?.let { video -> handleVideo(video, drmEventListener, callBack) }
+                p0?.let { video -> handleVideo(video, callBack) }
             }
         })
     }
 
     private fun handleVideo(
         video: Video,
-        drmEventListener: DefaultDrmSessionEventListener,
-        callBack: (mediaSource: MediaSource, drmSessionManager: DrmSessionManager<FrameworkMediaCrypto>?) -> Unit
+        callBack: (mediaItem: MediaItem) -> Unit
     ) {
         val source = ExoPlayerSourceSelector().selectSource(video)
-        val mediaSource = buildMediaSource(source)
-        val drmSessionManager = buildDrmSessionManager(video, source, drmEventListener)
+        val mediaItem = buildMediaItem(video, source)
 
-        callBack.invoke(mediaSource, drmSessionManager)
+        callBack.invoke(mediaItem)
     }
 
-    private fun buildDrmSessionManager(video: Video, source: Source, drmEventListener: DefaultDrmSessionEventListener): DrmSessionManager<FrameworkMediaCrypto>? {
-        return if (source.hasKeySystem("com.widevine.alpha") || video.properties.containsKey("defaultUrl")) {
-            val drmSessionManager = ExoPlayerDrmSessionManager(
-                Constants.WIDEVINE_UUID, FrameworkMediaDrm.newInstance(
-                    Constants.WIDEVINE_UUID
-                ), WidevineMediaDrmCallback.create(video.properties, source.properties), null, Handler(), drmEventListener
-            )
+    private fun buildMediaItem(video: Video, source: Source): MediaItem {
+        val mediaItem = MediaItem.Builder()
+            .setUri(source.url)
+            .setDrmUuid(C.WIDEVINE_UUID)
+            .setDrmMultiSession(true)
 
-            video.offlinePlaybackLicenseKey?.let { playbackLicense ->
-                drmSessionManager.setMode(DefaultDrmSessionManager.MODE_PLAYBACK, playbackLicense)
-            }
-
-            drmSessionManager
-        } else
-            null
-    }
-
-    private fun buildMediaSource(source: Source): MediaSource {
-        val dataSourceFactory = DefaultDataSourceFactory(
-            context,
-            Util.getUserAgent(context, MainActivity.APP_NAME)
-        )
-
-        return when (val deliveryType = source.deliveryType) {
-            DeliveryType.DASH -> {
-                DashMediaSource.Factory(dataSourceFactory)
-                    .createMediaSource(Uri.parse(source.url))
-            }
-
-            DeliveryType.HLS -> HlsMediaSource.Factory(dataSourceFactory).createMediaSource(
-                Uri.parse(source.url))
-
-            DeliveryType.MP4 -> ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(
-                Uri.parse(source.url))
-
-            else -> throw IllegalStateException("Unsupported type: $deliveryType")
+        if (source.hasKeySystem(Source.Fields.WIDEVINE_KEY_SYSTEM)) {
+            mediaItem.setDrmLicenseUri(source.getLicenseUrl())
         }
+
+        return mediaItem.build()
     }
+
+    /**
+     * Extension function for getting License URL from source
+     */
+    private fun Source.getLicenseUrl() = (properties[Source.Fields.KEY_SYSTEMS] as Map<String, Map<String, String>>).get(Source.Fields.WIDEVINE_KEY_SYSTEM)!!.get(Source.Fields.LICENSE_URL)
 }
